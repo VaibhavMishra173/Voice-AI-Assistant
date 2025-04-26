@@ -7,11 +7,10 @@ import av
 import numpy as np
 import wave
 from core.config import Config
+from pydub import AudioSegment
 
 API_BASE_URL = Config.API_BASE_URL
 API_URL = f"{API_BASE_URL}/chat/ask"
-
-# print('API_URL------------->', API_URL)
 
 st.set_page_config(page_title="Fort Wise Voice Assistant", layout="centered")
 st.title("🎙️ Fort Wise Voice AI Assistant")
@@ -59,17 +58,55 @@ uploaded_file = st.file_uploader("Upload MP3/WAV file (≤ 30s)", type=["wav", "
 
 audio_to_send = recorded_audio_path
 
+# Validate file type before sending
 if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
-        temp_audio.write(uploaded_file.read())
-        audio_to_send = temp_audio.name
+    file_type = uploaded_file.type
+    st.write(f"Uploaded file type: {file_type}")  # Debugging step to see MIME type
+    
+    if file_type not in ["audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp3"]:
+        st.error("Invalid file type. Only WAV or MP3 files are supported.")
+    else:
+        # Convert MP3 to WAV if uploaded file is MP3
+        if file_type == "audio/mpeg" or uploaded_file.name.endswith(".mp3"):
+            st.write("Converting MP3 to WAV...")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as mp3_file:
+                mp3_file.write(uploaded_file.read())
+                mp3_path = mp3_file.name
+                
+                # Convert MP3 to WAV using pydub
+                wav_path = mp3_path.replace(".mp3", ".wav")
+                audio = AudioSegment.from_mp3(mp3_path)
+                audio.export(wav_path, format="wav")
+                audio_to_send = wav_path
+        else:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+                temp_audio.write(uploaded_file.read())
+                audio_to_send = temp_audio.name
 
+# Ensure the file has the correct content type and send the request
 if audio_to_send:
     with st.spinner("Thinking..."):
-        print('API_URL------------->', API_URL)
         with open(audio_to_send, "rb") as f:
-            files = {"audio_file": f}
-            response = requests.post(API_URL, files=files)
+            file_contents = f.read()
+            
+        # Determine the correct content type based on file extension
+        if audio_to_send.endswith('.wav'):
+            content_type = 'audio/wav'
+        elif audio_to_send.endswith('.mp3'):
+            content_type = 'audio/mp3'
+        else:
+            content_type = 'audio/wav'  # Default fallback
+            
+        files = {
+            "audio_file": (
+                os.path.basename(audio_to_send),  # Filename
+                file_contents,                    # File content
+                content_type                      # Content type
+            )
+        }
+        
+        response = requests.post(API_URL, files=files)
+
 
         if response.status_code == 200:
             st.success("Got response!")

@@ -1,89 +1,75 @@
-import streamlit as st
-import requests
-import tempfile
+from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi.responses import FileResponse
+from tempfile import NamedTemporaryFile
 import os
+from api.services import stt, tts, llm, vector_search
+from api.services.memory import SessionMemory
+from core.utils.audio_utils import validate_audio_duration, convert_audio
+from core.config import Config
+from api.services.logging import get_logger
 
-API_URL = "http://localhost:8000/chat/ask"
+router = APIRouter()
+logger = get_logger()
+memory = SessionMemory()
 
-st.set_page_config(page_title="Fort Wise Voice Assistant", layout="centered")
-st.title("🎙️ Fort Wise Voice AI Assistant")
+@router.post("/ask")
+async def chat_ask(audio_file: UploadFile = File(...)):
+    if audio_file.content_type not in ["audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp3"]:
+        raise HTTPException(status_code=400, detail="Only WAV or MP3 files are supported")
 
-st.subheader("🎤 Record Your Question (Beta)")
+    temp_audio_path = None
+    converted_path = None
+    try:
+        # Save uploaded file temporarily
+        with NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
+            temp_audio.write(await audio_file.read())
+            temp_audio_path = temp_audio.name
 
-# Record from mic
-class AudioRecorderCallback:
-    def __init__(self):
-        self.audio_frames = []
+        # Convert to proper format if needed (e.g., MP3 -> WAV)
+        converted_path = convert_audio(temp_audio_path)
 
-    def __call__(self, frame):
-        pcm = frame.to_ndarray().flatten().astype(np.int16).tobytes()
-        self.audio_frames.append(pcm)
+        # Optional: Check audio duration limit
+        validate_audio_duration(converted_path, Config.MAX_AUDIO_DURATION)
 
-callback = AudioRecorderCallback()
+        logger.info("Transcribing audio...")
+        question = stt.transcribe(converted_path)
 
-webrtc_ctx = webrtc_streamer(
-    key="audio-recorder",
-    mode=WebRtcMode.SENDONLY,
-    in_audio=True,
-    out_audio=False,
-    client_settings=ClientSettings(media_stream_constraints={"audio": True, "video": False}),
-    audio_receiver_size=256,
-    on_audio_frame=callback,
-)
+        if not question:
+            raise HTTPException(status_code=400, detail="Could not transcribe audio")
 
-recorded_audio_path = None
+        logger.info(f"User said: {question}")
 
-if webrtc_ctx.state.playing:
-    st.info("Recording... Click Stop when done.")
-elif callback.audio_frames:
-    st.success("Recording finished.")
-    # Save audio
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
-        with wave.open(f, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)  # 16-bit audio
-            wf.setframerate(48000)
-            wf.writeframes(b"".join(callback.audio_frames))
-        recorded_audio_path = f.name
+        # Retrieve memory context and docs
+        memory_context = memory.get_formatted_context()
+        docs = vector_search.query_faiss(question)
 
-# Or upload manually
-st.subheader("📁 Or Upload an Audio File")
-uploaded_file = st.file_uploader("Upload MP3/WAV file (≤ 30s)", type=["wav", "mp3"])
+        logger.info("Generating answer...")
+        answer = llm.generate_answer(question, docs, memory_context)
 
-audio_to_send = recorded_audio_path
+        logger.info(f"AI Answer: {answer}")
 
-if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
-        temp_audio.write(uploaded_file.read())
-        audio_to_send = temp_audio.name
+        # Save to memory
+        memory.add_turn(question, answer)
 
-if audio_to_send:
-    with st.spinner("Thinking..."):
-        # Explicitly set the content type here
-        with open(audio_to_send, "rb") as f:
-            files = {
-                "audio_file": ("question_audio.mp3", f, "audio/mpeg")  # Explicit content type
+        # TTS synthesis
+        audio_response_path = tts.synthesize_speech(answer)
+
+        return FileResponse(
+            path=audio_response_path,
+            media_type="audio/mpeg",
+            filename="response.mp3",
+            headers={
+                "X-Question": question,
+                "X-Answer": answer
             }
-            response = requests.post(API_URL, files=files)
+        )
 
-        if response.status_code == 200:
-            st.success("Got response!")
+    except Exception as e:
+        logger.exception("Error in /chat/ask endpoint")
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
-            question = response.headers.get("X-Question")
-            answer = response.headers.get("X-Answer")
-
-            if question:
-                st.subheader("🧠 Transcribed Question:")
-                st.markdown(f"**{question}**")
-
-            if answer:
-                st.subheader("💬 Assistant Answer:")
-                st.markdown(answer)
-
-            # Play back audio
-            st.audio(response.content, format="audio/mp3")
-
-        else:
-            st.error(f"API Error: {response.status_code}\n{response.text}")
-
-    os.remove(audio_to_send)
+    finally:
+        # Clean up all temp files
+        for f in [temp_audio_path, converted_path]:
+            if f and os.path.exists(f):
+                os.remove(f)
