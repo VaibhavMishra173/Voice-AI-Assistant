@@ -1,4 +1,12 @@
 __pycache__/
-.env
-data/faiss_index/*.faiss
-temp/*.wav
+*.pyc
+.env*
+*.mp3
+*.wav
+*.ogg
+*.log
+.vscode/
+.idea/
+*.DS_Store
+data/faiss_index/*
+venv

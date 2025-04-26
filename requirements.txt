@@ -1,0 +1,22 @@
+streamlit
+openai
+python-dotenv
+faiss-cpu
+numpy
+pydub
+requests
+python-telegram-bot
+uvicorn
+fastapi
+loguru
+aiofiles
+pytest
+soundfile
+sentence-transformers
+python-multipart
+torch
+streamlit-webrtc
+openai-whisper @ git+https://github.com/openai/whisper.git@517a43ecd132a2089d85f4ebc044728a71d49f6e
+
+# Install Whisper separately
+# pip install git+https://github.com/openai/whisper.git
