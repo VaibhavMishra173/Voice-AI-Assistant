@@ -1,232 +1,235 @@
-# 🧠 Fort Wise AI - Voice Assistant
+# 🧠 Fort Wise Voice AI Assistant
 
-A Voice AI Chatbot that takes voice input, retrieves knowledge via FAISS, and replies with voice using GPT-4o and OpenAI TTS.
+A powerful **Voice-to-Voice Assistant powered by Whisper, FAISS, GPT-4o, and TTS** that takes voice input, retrieves knowledge via FAISS, answers using **GPT-4o**, and responds back with natural **TTS (Text-to-Speech)** audio.  
+Built with **FastAPI** for the backend and **Streamlit** for a simple web UI.
 
-## 🎯 Features
+---
 
-- Voice input (WAV/MP3)
-- Whisper STT
-- FAISS-powered semantic search
-- GPT-4o for accurate, grounded answers
-- OpenAI TTS for natural voice replies
-- Context memory
-- Streamlit UI + FastAPI API
+## 🌟 Features
 
-## 🛠 Setup
+- 🎹 Voice Input (WAV/MP3) using **Whisper** STT
+- 🔎 Semantic Search using **FAISS**
+- 🧠 Response Generation with **GPT-4o**
+- 👤 Voice Output via **OpenAI TTS**
+- 🧠 Context Memory for follow-up conversations
+- 🌐 Streamlit-based Web UI
+- 🚀 FastAPI-powered REST API
+- ✅ Unit-tested for reliability
+- 🐳 Dockerized for easy deployment
+
+---
+
+## 🐳 Quickstart with Docker (Recommended)
+
+Build and run the app with Docker Compose:
 
 ```bash
-git clone https://github.com/yourname/fort-wise-voice-ai.git
-cd fort-wise-voice-ai
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-pip install git+https://github.com/openai/whisper.git
-
-
-
-
-
-
-
-
-
-
-
-
-# Voice-AI-Assistant
-
-# Voice AI Assistant for Fort Wise AI
-
-## Features
-- Voice Input (STT with Whisper)
-- Semantic Search using FAISS
-- Answer generation with GPT-4
-- Voice Output (OpenAI TTS)
-- Context Memory for follow-ups
-- REST API (Flask)
-
-## Setup
-```bash
-pip install -r requirements.txt
-cp .env.example .env  # then update it
-python run.py
+docker-compose up --build
 ```
 
-## Test
+Access the backend API:  
+➡️ `http://localhost:8000`
+
+Access the Streamlit UI:  
+➡️ `http://localhost:8501`
+
+> **Note**: Make sure you configure your `.env` file correctly before building the Docker image!
+
+If you make changes to the code, rebuild the containers:
+
 ```bash
-pytest tests/
+docker-compose down
+docker-compose up --build
 ```
-
-## API Usage
-```bash
-curl -X POST http://127.0.0.1:8000/ask \
-  -F "audio=@sample.wav" \
-  -H "accept: application/json"
-```
-
-
-
-
-
-
-
-
-
-
-
-
-# voice-assistant
-
-A Voice AI Assistant that allows users to speak their questions and get spoken answers based on a `.txt` knowledge base using FAISS + OpenAI APIs.
 
 ---
 
 ## 📁 Folder Structure
+
 ```
-voice-assistant/
-├── app/
-│   ├── __init__.py
+Voice-AI-Assistant/
+├── api/
+│   ├── main.py
+│   ├── routes/
+│   └── services/
+├── core/
 │   ├── config.py
-│   ├── routes.py
-│   ├── services/
-│   │   ├── stt_service.py
-│   │   ├── faiss_service.py
-│   │   ├── llm_service.py
-│   │   └── tts_service.py
 │   └── utils/
-│       ├── audio_utils.py
-│       └── logger.py
+├── data/
+│   ├── knowledge_base.txt
+│   └── faiss_index/
+├── telegram_bot/
+│   └── bot.py
+├── tests/
+│   ├── test_*.py
+│   └── audio/
 ├── ui/
 │   └── streamlit_app.py
-├── tests/
-│   └── test_services.py
-├── .env
+├── Dockerfile
+├── docker-compose.yml
+├── README.md
 ├── requirements.txt
 ├── run.py
-├── sample_data.txt
-├── sample_audio.wav
-└── README.md
+└── run.sh
 ```
 
 ---
 
-## ✅ Setup Instructions
+## 🧪 Manual Setup Instructions (Local Development)
 
-### 1. Clone and Install
+### 1. Clone the repository
+
 ```bash
-git clone https://github.com/your-username/voice-assistant.git
-cd voice-assistant
+git clone https://github.com/VaibhavMishra173/Voice-AI-Assistant.git
+cd Voice-AI-Assistant
+```
+
+### 2. Create and activate virtual environment
+
+```bash
 python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+source venv/bin/activate  # Linux/macOS
+# OR
+venv\Scripts\activate  # Windows
+```
+
+### 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
+pip install git+https://github.com/openai/whisper.git
 ```
 
-### 2. Add Environment Variables
-Create a `.env` file:
+### 4. Configure Environment Variables
+
+Create a `.env` file based on `.env.example`:
+
 ```
-OPENAI_API_KEY=your-openai-key
-AUDIO_INPUT_LIMIT_SECONDS=30
-FAISS_INDEX_PATH=faiss_index/index.faiss
-EMBEDDING_CSV_PATH=faiss_index/embeddings.csv
-DATASET_PATH=sample_data.txt
+# API Keys
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Google Cloud TTS (optional for future)
+GOOGLE_CLOUD_CREDENTIALS_JSON=path/to/your/credentials.json
+
+# App Config
+MAX_AUDIO_DURATION=30
+USE_OPENAI_TTS=True
+USE_OPENAI_STT=True
+
+# Path Configs
+DATA_PATH=data/knowledge_base.txt
+FAISS_INDEX_PATH=data/faiss_index/index.faiss
+
+# Models
+MODEL_NAME=gpt-4o
+WHISPER_MODEL=base
+TTS_VOICE=alloy  # Options: echo, fable, onyx, nova, shimmer
+CONTEXT_MEMORY_TURNS=15
+
+# URLs
+API_BASE_URL=http://localhost:8000
+# IMPORTANT: For Docker, use service name instead of localhost
+# API_BASE_URL=http://voice-ai-fastapi:8000
 ```
 
-### 3. Run Web UI (Streamlit)
+---
+
+## 🚀 Running the Application Locally
+
+### 1. Start Backend API (FastAPI)
+
+```bash
+uvicorn api.main:app --reload
+```
+
+Access the backend at:  
+➡️ `http://127.0.0.1:8000`
+
+---
+
+### 2. Start Web UI (Streamlit)
+
 ```bash
 streamlit run ui/streamlit_app.py
 ```
 
+Access the UI at:  
+➡️ `http://localhost:8501`
+
+In the UI you can:
+- Upload or record voice input
+- View the transcription
+- See relevant document retrieval
+- Hear the AI's voice reply
+
 ---
 
-## 🌐 Streamlit UI
-The app lets you:
-- Upload an audio file (WAV)
-- View transcribed text
-- See retrieved document chunks
-- Listen to the AI's voice response
+## 💪 Running Tests
 
----
+Run all unit tests:
 
-## 🧪 Run Tests
 ```bash
 pytest tests/
 ```
 
 ---
 
-## 🎤 Sample Audio
-Use the `sample_audio.wav` provided to test.
+## 📡 API Example Usage
+
+Send an audio file to the backend:
+
+```bash
+curl -X POST http://127.0.0.1:8000/chat \
+  -F "audio=@sample_audio.wav" \
+  -H "accept: application/json"
+```
 
 ---
 
-## 🧰 Sample `curl` Command (API alternative)
+## 🤖 Telegram Bot (Optional, In Progress)
+
+- Listens for voice messages.
+- Sends them to your backend `/chat` API.
+- Replies with generated audio responses.
+
+Run the bot:
+
 ```bash
-curl -X POST http://localhost:5000/ask \
-  -F "audio=@sample_audio.wav"
+python telegram_bot/bot.py
 ```
 
 ---
 
 ## 📄 Notes & Improvements
-- Supports follow-up questions via context memory (basic)
-- Robust error handling and logging included
-- Configurable via `.env`
-- Streamlit UI for demo, easy to extend
-- Deployment-ready backend with Flask
+
+- Multi-turn conversation with context memory.
+- Full error handling and centralized logging.
+- Easily configurable via `.env`.
+- Backend ready for production deployment.
+- **Planned Features:**
+  - Production deployment (Render / Railway / GCP)
+  - Better long-context memory
+  - Multilingual support
+  - Real-time streaming conversations
 
 ---
 
-## 🚀 Next Steps (Planned)
-- Dockerization
-- Telegram bot version
-- Production deployment on Render / Railway / GCP
+## ❤️ Credits
 
+- [OpenAI](https://openai.com/) — Whisper, GPT-4o, TTS APIs
+- [FAISS](https://github.com/facebookresearch/faiss) — Nearest Neighbor Search
+- [Streamlit](https://streamlit.io/) — Web UI Framework
+- [FastAPI](https://fastapi.tiangolo.com/) — API Framework
 
+---
 
+## 📬 Contact
 
+For any issues, questions, or contributions:  
+📧 vaibhavmishra173@gmail.com  
+🔗 [GitHub Profile](https://github.com/VaibhavMishra173)
 
+---
 
+# 🚀 Let's build the future of voice-first AI assistants!
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Fort Wise Voice AI Assistant
-
-### Setup
-```bash
-pip install -r requirements.txt
-uvicorn api.main:app --reload
-streamlit run ui/streamlit_app.py
-```
-
-### Docker
-```bash
-docker build -t fortwise-assistant .
-docker run -p 5000:5000 --env-file .env fortwise-assistant
-```
-
-### Deployment Options
-- **Render**: Add repo, configure Docker
-- **Railway**: Docker project > connect GitHub > auto deploy
-- **GCP**: Use Cloud Run for Docker
-
-### Telegram Bot
-- Bot listens to voice messages → sends to `/ask` → replies with audio
-- See `telegram_bot/bot.py`
-
-### Tests
-Run with:
-```bash
-pytest tests/
-```
