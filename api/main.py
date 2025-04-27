@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import chat
 from api.services.logging import get_logger
+from api.services.sst import load_model
 
 logger = get_logger()
 
@@ -21,6 +22,12 @@ app.add_middleware(
 )
 
 app.include_router(chat.router, prefix="/chat")
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Starting up Voice AI Assistant...")
+    load_model()
+    logger.info("Whisper model loaded successfully.")
 
 @app.get("/")
 def root():
