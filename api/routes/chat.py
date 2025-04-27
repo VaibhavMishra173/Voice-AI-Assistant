@@ -41,7 +41,9 @@ async def chat_ask(audio_file: UploadFile = File(...)):
 
         # Retrieve memory context and docs
         memory_context = memory.get_formatted_context()
-        docs = vector_search.query_faiss(question)
+        logger.info(f"memory_context : {memory_context}")
+        docs = vector_search.query_faiss(question, Config.CONTEXT_MEMORY_TURNS)
+        logger.info(f"docs : {docs}")
 
         logger.info("Generating answer...")
         answer = llm.generate_answer(question, docs, memory_context)

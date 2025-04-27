@@ -2,10 +2,7 @@ import streamlit as st
 import requests
 import tempfile
 import os
-import json
 import base64
-from io import BytesIO
-from pydub import AudioSegment
 from core.config import Config
 
 # Configuration
@@ -113,8 +110,11 @@ with col1:
     st.markdown("---")
     st.subheader("🎤 Or Record Your Question")
 
-    audio_data = st.components.v1.html(
-    """
+    # Placeholder for recording controls and audio playback
+    audio_placeholder = st.empty()
+
+    # Using st.components.v1.html to render the custom HTML
+    audio_html = """
     <div style="text-align:center;">
       <button id="recordButton" style="padding:10px 20px; font-size:16px;">Start Recording</button>
       <button id="stopButton" style="padding:10px 20px; font-size:16px; display:none;">Stop Recording</button>
@@ -125,7 +125,6 @@ with col1:
     <script>
     let mediaRecorder;
     let audioChunks = [];
-
     const recordButton = document.getElementById('recordButton');
     const stopButton = document.getElementById('stopButton');
     const audioPlayback = document.getElementById('audioPlayback');
@@ -141,14 +140,20 @@ with col1:
 
         mediaRecorder.onstop = async () => {
             const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            const base64String = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            const audioUrl = URL.createObjectURL(audioBlob);
 
-            const streamlitInput = window.parent.document.querySelector('iframe[title="streamlit_app"]').contentWindow;
-            streamlitInput.postMessage({type: 'streamlit:setComponentValue', value: base64String}, '*');
-
-            audioPlayback.src = URL.createObjectURL(audioBlob);
+            audioPlayback.src = audioUrl;
             audioPlayback.style.display = 'block';
+
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            reader.onloadend = () => {
+                const base64data = reader.result.split(',')[1];
+                const streamlitInput = window.parent;
+                streamlitInput.postMessage(
+                    {type: 'streamlit:recording', data: base64data}, '*'
+                );
+            };
         };
 
         mediaRecorder.start();
@@ -162,15 +167,21 @@ with col1:
         stopButton.style.display = 'none';
     };
     </script>
-    """,
-    height=400,
-)
+    """
 
-if isinstance(audio_data, str):
-    decoded_audio = base64.b64decode(audio_data)
-    st.success("Recording received! Ready to process.")
-    if st.button("Process Recording", key="process_recording", type="primary"):
-        process_audio_file(decoded_audio, "recording.wav", content_type="audio/wav")
+    # Rendering the HTML with streamlit.components.v1
+    st.components.v1.html(audio_html, height=400)
+
+    # Capture base64 encoded audio data from the browser and process it
+    recorded_base64 = st.text_input("Recording", key="recording_base64", value="")
+
+    if recorded_base64:
+        decoded_audio = base64.b64decode(recorded_base64)
+        st.audio(decoded_audio, format="audio/wav")
+        
+        if st.button("Send Recording to Backend"):
+            with st.spinner("Sending recording..."):
+                process_audio_file(decoded_audio, "recorded_audio.wav", content_type="audio/wav")
 
 with col2:
     st.subheader("📝 Your Conversations")
@@ -185,4 +196,3 @@ with col2:
                 st.audio(chat['audio_response'], format="audio/mp3")
     else:
         st.info("No conversation history yet. Upload or record an audio to start!")
-

@@ -15,8 +15,7 @@ def generate_answer(question: str, retrieved_chunks: list[str], memory_context: 
     system_context = memory_context + f"\n\nRelevant context:\n{context}" if memory_context else context
 
     # Prepare the prompt
-    prompt = f"""You are a helpful assistant answering questions based on the following context.
-Only answer using the information from the context below. If the answer is not found, say "I don't know based on the provided information."
+    prompt = f"""You are a helpful assistant for Fort Wise AI answering questions based on the following context. Use the context provided to give accurate, detailed answers. If the information isn't in the context, say "I don't have enough information to answer that completely.
 
 Context:
 {system_context}
@@ -24,15 +23,15 @@ Context:
 Question: {question}
 Answer:"""
 
-    # Send the request to OpenAI API using the new client syntax
+    # Send the request to OpenAI API
     response = client.chat.completions.create(
         model=Config.MODEL_NAME,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant that only uses provided context and history."},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": f"Context:\n{system_context}\n\nQuestion: {question}"}
         ],
         temperature=0.2,
-        max_tokens=512,
+        max_tokens=2048,
     )
 
     # Extract and return the answer (updated syntax)

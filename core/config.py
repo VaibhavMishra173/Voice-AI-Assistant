@@ -19,5 +19,4 @@ class Config:
     TTS_VOICE = os.getenv("TTS_VOICE", "alloy")
 
     API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
-    CONTEXT_MEMORY_TURNS = os.getenv("CONTEXT_MEMORY_TURNS", 5)
-    
+    CONTEXT_MEMORY_TURNS = int(os.getenv("CONTEXT_MEMORY_TURNS", 15))
