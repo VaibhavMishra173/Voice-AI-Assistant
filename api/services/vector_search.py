@@ -80,11 +80,6 @@ def preprocess_document():
                     chunk = section[i:i + chunk_size]
                     if len(chunk) >= 100:  # Only keep meaningful chunks
                         chunks.append(chunk)
-        
-        # Save the chunks to your data file
-        with open(Config.DATA_PATH, "w") as f:
-            for chunk in chunks:
-                f.write(chunk + "\n")
                 
         return chunks
     except Exception as e:

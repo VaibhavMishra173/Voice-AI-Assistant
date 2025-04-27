@@ -2,8 +2,8 @@ import streamlit as st
 import requests
 import tempfile
 import os
-import base64
 from core.config import Config
+from st_audiorec import st_audiorec
 
 # Configuration
 API_BASE_URL = Config.API_BASE_URL
@@ -17,43 +17,18 @@ st.title("🎙️ Fort Wise Voice AI Assistant")
 if 'conversation' not in st.session_state:
     st.session_state.conversation = []
     
-if 'debug_info' not in st.session_state:
-    st.session_state.debug_info = {"last_error": None, "last_file": None, "last_api_request": None}
+if 'info_info' not in st.session_state:
+    st.session_state.info_info = {"last_error": None, "last_file": None, "last_api_request": None}
 
-if 'recorded_audio' not in st.session_state:
-    st.session_state.recorded_audio = None
-    st.session_state.recorded_format = None
-    st.session_state.recording_needs_processing = False
+if 'audio_data' not in st.session_state:
+    st.session_state.audio_data = None
 
-# Function to handle file upload and API call
-def process_audio_file(audio_data, filename, content_type="audio/wav"):
-    """Process audio data and send to API. Works with file data or bytes."""
+# Function to send audio to backend
+def send_to_backend(audio_data, filename="recorded_audio.wav", content_type="audio/wav"):
     try:
-        file_suffix = ".wav" if content_type == "audio/wav" else ".mp3"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmp_file:
-            if isinstance(audio_data, bytes):
-                tmp_file.write(audio_data)
-            else:
-                tmp_file.write(audio_data.getvalue())
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+            tmp_file.write(audio_data)
             temp_file_path = tmp_file.name
-        
-        st.session_state.debug_info["last_file"] = temp_file_path
-        
-        if not os.path.exists(temp_file_path):
-            st.error(f"Failed to create temporary file")
-            return False
-            
-        file_size = os.path.getsize(temp_file_path)
-        if file_size == 0:
-            st.error("Audio file is empty")
-            return False
-            
-        st.session_state.debug_info["last_api_request"] = {
-            "url": API_URL,
-            "file_name": filename,
-            "content_type": content_type,
-            "file_size": file_size
-        }
         
         with open(temp_file_path, "rb") as f:
             files = {"audio_file": (filename, f, content_type)}
@@ -62,7 +37,7 @@ def process_audio_file(audio_data, filename, content_type="audio/wav"):
                 response = requests.post(
                     API_URL, 
                     files=files,
-                    headers={"X-Client-Debug": "streamlit-frontend"}
+                    headers={"X-Client-info": "streamlit-frontend"}
                 )
         
         if os.path.exists(temp_file_path):
@@ -78,110 +53,43 @@ def process_audio_file(audio_data, filename, content_type="audio/wav"):
                 "audio_response": response.content
             })
             
-            st.success("Response received!")
             return True
         else:
-            st.error(f"API Error: {response.status_code}\n{response.text}")
-            st.session_state.debug_info["last_error"] = response.text
+            st.error(f"API Error: {response.status_code}")
             return False
     except Exception as e:
-        st.error(f"Error processing audio: {str(e)}")
-        st.session_state.debug_info["last_error"] = str(e)
+        st.error(f"Error: {str(e)}")
         return False
 
-# Create a layout
+# Layout
 col1, col2 = st.columns([3, 2])
 
 with col1:
     st.subheader("📁 Upload an Audio File")
     
-    upload_col1, upload_col2 = st.columns([3, 1])
-    
-    with upload_col1:
-        uploaded_file = st.file_uploader("Upload MP3/WAV file (≤ 30s)", type=["wav", "mp3"])
-    
-    with upload_col2:
-        if uploaded_file:
-            st.write("File ready!")
-            if st.button("Process File", key="process_upload", type="primary"):
-                content_type = "audio/wav" if uploaded_file.name.lower().endswith(".wav") else "audio/mp3"
-                process_audio_file(uploaded_file, uploaded_file.name, content_type)
+    uploaded_file = st.file_uploader("Upload MP3/WAV file (≤ 30s)", type=["wav", "mp3"])
+    if uploaded_file:
+        st.audio(uploaded_file, format=f"audio/{uploaded_file.name.split('.')[-1]}")
+        if st.button("Process File", key="process_upload", type="primary"):
+            content_type = "audio/wav" if uploaded_file.name.lower().endswith(".wav") else "audio/mp3"
+            send_to_backend(uploaded_file.getvalue(), uploaded_file.name, content_type)
     
     st.markdown("---")
     st.subheader("🎤 Or Record Your Question")
 
-    # Placeholder for recording controls and audio playback
-    audio_placeholder = st.empty()
+    # New simple recording block
+    wav_audio_data = st_audiorec()
 
-    # Using st.components.v1.html to render the custom HTML
-    audio_html = """
-    <div style="text-align:center;">
-      <button id="recordButton" style="padding:10px 20px; font-size:16px;">Start Recording</button>
-      <button id="stopButton" style="padding:10px 20px; font-size:16px; display:none;">Stop Recording</button>
-      <br><br>
-      <audio id="audioPlayback" controls style="width:100%; display:none;"></audio>
-    </div>
+    if wav_audio_data is not None:
+        st.audio(wav_audio_data, format="audio/wav")
 
-    <script>
-    let mediaRecorder;
-    let audioChunks = [];
-    const recordButton = document.getElementById('recordButton');
-    const stopButton = document.getElementById('stopButton');
-    const audioPlayback = document.getElementById('audioPlayback');
+        if st.button("Process Recording", key="process_recording", type="primary"):
+            if send_to_backend(wav_audio_data, "recording.wav", "audio/wav"):
+                st.success("Recording sent to assistant!")
+                st.rerun()
 
-    recordButton.onclick = async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = event => {
-            audioChunks.push(event.data);
-        };
-
-        mediaRecorder.onstop = async () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-            const audioUrl = URL.createObjectURL(audioBlob);
-
-            audioPlayback.src = audioUrl;
-            audioPlayback.style.display = 'block';
-
-            const reader = new FileReader();
-            reader.readAsDataURL(audioBlob);
-            reader.onloadend = () => {
-                const base64data = reader.result.split(',')[1];
-                const streamlitInput = window.parent;
-                streamlitInput.postMessage(
-                    {type: 'streamlit:recording', data: base64data}, '*'
-                );
-            };
-        };
-
-        mediaRecorder.start();
-        recordButton.style.display = 'none';
-        stopButton.style.display = 'inline';
-    };
-
-    stopButton.onclick = () => {
-        mediaRecorder.stop();
-        recordButton.style.display = 'inline';
-        stopButton.style.display = 'none';
-    };
-    </script>
-    """
-
-    # Rendering the HTML with streamlit.components.v1
-    st.components.v1.html(audio_html, height=400)
-
-    # Capture base64 encoded audio data from the browser and process it
-    recorded_base64 = st.text_input("Recording", key="recording_base64", value="")
-
-    if recorded_base64:
-        decoded_audio = base64.b64decode(recorded_base64)
-        st.audio(decoded_audio, format="audio/wav")
-        
-        if st.button("Send Recording to Backend"):
-            with st.spinner("Sending recording..."):
-                process_audio_file(decoded_audio, "recorded_audio.wav", content_type="audio/wav")
+        if st.button("Record Again", key="record_again"):
+            st.rerun()
 
 with col2:
     st.subheader("📝 Your Conversations")
@@ -190,7 +98,7 @@ with col2:
         
     if st.session_state.conversation:
         for idx, chat in enumerate(reversed(st.session_state.conversation)):
-            with st.expander(f"🧠 Q: {chat['question'][:80]}..."):
+            with st.expander(f"🧠 Q: {chat['question'][:80] if chat['question'] else 'No question detected'}..."):
                 st.markdown(f"**🧠 Question:** {chat['question']}")
                 st.markdown(f"**💬 Answer:** {chat['answer']}")
                 st.audio(chat['audio_response'], format="audio/mp3")
