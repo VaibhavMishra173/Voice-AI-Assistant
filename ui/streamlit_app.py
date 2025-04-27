@@ -78,7 +78,7 @@ with col1:
                     st.success("✅ Recording Complete! Ready to Process.", icon="✅")
                     col_record, col_reset = st.columns(2)
                     with col_record:
-                        if st.button("🚀 Send to Assistant", key="process_recording", use_container_width=True):
+                        if st.button("🚀 Stop Recording & Send", key="stop_recording", use_container_width=True):
                             if send_to_backend(wav_audio_data, "recording.wav", "audio/wav"):
                                 st.success("🎉 Sent Successfully!")
                                 st.session_state.recording_mode = False

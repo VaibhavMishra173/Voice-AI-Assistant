@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import chat
 from api.services.logging import get_logger
-from api.services.sst import load_model
+from api.services.stt import load_model
 
 logger = get_logger()
 
