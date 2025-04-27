@@ -179,7 +179,7 @@ pytest tests/
 Send an audio file to the backend:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/chat \
+curl -X POST http://127.0.0.1:8000/chat/ask \
   -F "audio=@sample_audio.wav" \
   -H "accept: application/json"
 ```
@@ -189,7 +189,7 @@ curl -X POST http://127.0.0.1:8000/chat \
 ## 🤖 Telegram Bot (Optional, In Progress)
 
 - Listens for voice messages.
-- Sends them to your backend `/chat` API.
+- Sends them to your backend `/chat/ask` API.
 - Replies with generated audio responses.
 
 Run the bot:
