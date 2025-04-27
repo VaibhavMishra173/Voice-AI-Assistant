@@ -6,7 +6,7 @@ logger = get_logger()
 
 model = None
 
-def load_model():
+async def load_model():
     global model
     if model is None:
         logger.info(f"Loading Whisper model: {Config.WHISPER_MODEL}")
